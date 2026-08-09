@@ -1,0 +1,5 @@
+Write-Host "[+] Payload berhasil di-download dari GitHub!"
+Write-Host "[+] Running as: $env:USERNAME"
+Write-Host "[+] Hostname: $env:COMPUTERNAME"
+Write-Host "[+] Current Directory: $PWD"
+Write-Host "[+] Modul 4: Fileless Execution berhasil!"

